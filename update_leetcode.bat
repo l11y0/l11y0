@@ -1,5 +1,5 @@
 @echo off
-cd /d C:\Users\黃韻如\Documents\leetcode
+cd /d C:\Users\黃韻如\Documents\l11y0
 go run main.go
 if %errorlevel% neq 0 (
     echo 執行 Go 程式時發生錯誤 >> update_error.log
