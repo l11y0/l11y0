@@ -8,22 +8,28 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
 
-var userName = "l11y0" // 請確保這是您的 LeetCode 用戶名
+var userSlug = "l11y0"                           // 確保這是您的 LeetCode 用戶名
+var projectPath = `C:\Users\黃韻如\Documents\l11y0` // 設定專案路徑
 
 func main() {
+	// 切換到專案目錄
+	err := os.Chdir(projectPath)
+	if err != nil {
+		log.Fatalf("無法切換到專案目錄：%v", err)
+	}
+
 	easy, medium, hard := getQuestionProgressInfo()
-	mdContent := readFile()
+	mdContent := readFile("README-TEMP.md")
 	mdContent = strings.ReplaceAll(mdContent, `[[1]]`, strconv.Itoa(easy+medium+hard))
 	mdContent = strings.ReplaceAll(mdContent, `[[2]]`, strconv.Itoa(easy))
 	mdContent = strings.ReplaceAll(mdContent, `[[3]]`, strconv.Itoa(medium))
 	mdContent = strings.ReplaceAll(mdContent, `[[4]]`, strconv.Itoa(hard))
 	fmt.Println(mdContent)
-	err := createWriteFile(mdContent)
+	err = createWriteFile("README.md", mdContent)
 	if err != nil {
 		log.Fatalf("寫入檔案時發生錯誤：%v", err)
 	}
@@ -42,13 +48,19 @@ func updateGithub() error {
 	commands := []string{
 		"git add README.md",
 		"git commit -m \"update\"",
-		"git push",
+		"git push https://github.com/l11y0/l11y0.git main",
 	}
 
 	for _, cmd := range commands {
 		parts := strings.Fields(cmd)
 		command := exec.Command(parts[0], parts[1:]...)
-		command.Dir = filepath.Dir(os.Args[0]) // 設置工作目錄為程式所在的目錄
+
+		// 設置環境變數以處理可能的憑證請求
+		command.Env = append(os.Environ(),
+			"GIT_ASKPASS=git-gui--askpass",
+			"SSH_ASKPASS=git-gui--askpass",
+		)
+
 		output, err := command.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("執行命令 '%s' 時發生錯誤：%v，輸出：%s", cmd, err, output)
@@ -58,16 +70,16 @@ func updateGithub() error {
 	return nil
 }
 
-func createWriteFile(mdContent string) error {
-	return ioutil.WriteFile("README.md", []byte(mdContent), 0644)
+func createWriteFile(filename, content string) error {
+	return ioutil.WriteFile(filename, []byte(content), 0644)
 }
 
 func getQuestionProgressInfo() (easy, medium, hard int) {
 	client := &http.Client{}
 	jsonStr := `{
-		"query": "query userProfileUserQuestionProgressV2($username: String!) { userProfileUserQuestionProgressV2(username: $username) { numAcceptedQuestions { difficulty count } } }",
+		"query": "query userProfileUserQuestionProgressV2($userSlug: String!) { userProfileUserQuestionProgressV2(userSlug: $userSlug) { numAcceptedQuestions { difficulty count } } }",
 		"variables": {
-			"username": "` + userName + `"
+			"userSlug": "` + userSlug + `"
 		}
 	}`
 	req, err := http.NewRequest("POST", "https://leetcode.com/graphql/", strings.NewReader(jsonStr))
@@ -120,10 +132,10 @@ func getQuestionProgressInfo() (easy, medium, hard int) {
 	return
 }
 
-func readFile() string {
-	data, err := ioutil.ReadFile("README-TEMP.md")
+func readFile(filename string) string {
+	data, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Fatalf("讀取模板檔案時發生錯誤：%v", err)
+		log.Fatalf("讀取檔案 %s 時發生錯誤：%v", filename, err)
 	}
 	return string(data)
 }
