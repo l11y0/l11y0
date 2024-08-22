@@ -46,9 +46,9 @@ func checkFileIsExist(filename string) bool {
 
 func updateGithub() error {
 	commands := []string{
-		"git add README.md",
-		"git commit -m \"update\"",
-		"git push https://github.com/l11y0/l11y0.git main",
+		"git add .",
+		"git commit -m \"update README.md and main.go\"",
+		"git push origin master",
 	}
 
 	for _, cmd := range commands {
@@ -63,7 +63,9 @@ func updateGithub() error {
 
 		output, err := command.CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("執行命令 '%s' 時發生錯誤：%v，輸出：%s", cmd, err, output)
+			log.Printf("執行命令 '%s' 時發生錯誤：%v", cmd, err)
+			log.Printf("命令輸出：%s", output)
+			return fmt.Errorf("執行命令 '%s' 失敗", cmd)
 		}
 		fmt.Printf("命令 '%s' 的輸出：%s\n", cmd, output)
 	}
