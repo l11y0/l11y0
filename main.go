@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -14,7 +13,7 @@ import (
 )
 
 var userSlug = "l11y0"
-var projectPath = filepath.Join("C:", "Users", "黃韻如", "Documents", "l11y0")
+var projectPath = filepath.Join("C:\\Users", "黃韻如", "Documents", "l11y0")
 
 func main() {
 	// 切換到專案目錄
@@ -23,14 +22,24 @@ func main() {
 		log.Fatalf("無法切換到專案目錄：%v", err)
 	}
 
-	easy, medium, hard := getQuestionProgressInfo()
-	mdContent := readFile("README-TEMP.md")
-	mdContent = strings.ReplaceAll(mdContent, `[[1]]`, strconv.Itoa(easy+medium+hard))
-	mdContent = strings.ReplaceAll(mdContent, `[[2]]`, strconv.Itoa(easy))
-	mdContent = strings.ReplaceAll(mdContent, `[[3]]`, strconv.Itoa(medium))
-	mdContent = strings.ReplaceAll(mdContent, `[[4]]`, strconv.Itoa(hard))
-	fmt.Println(mdContent)
-	err = createWriteFile("README.md", mdContent)
+	easy, medium, hard, err := getQuestionProgressInfo()
+	if err != nil {
+		log.Fatalf("獲取題目進度信息時發生錯誤：%v", err)
+	}
+
+	mdContent, err := readFile("README-TEMP.md")
+	if err != nil {
+		log.Fatalf("讀取 README-TEMP.md 時發生錯誤：%v", err)
+	}
+
+	var builder strings.Builder
+	builder.WriteString(strings.ReplaceAll(mdContent, `[[1]]`, strconv.Itoa(easy+medium+hard)))
+	builder.WriteString(strings.ReplaceAll(builder.String(), `[[2]]`, strconv.Itoa(easy)))
+	builder.WriteString(strings.ReplaceAll(builder.String(), `[[3]]`, strconv.Itoa(medium)))
+	builder.WriteString(strings.ReplaceAll(builder.String(), `[[4]]`, strconv.Itoa(hard)))
+
+	fmt.Println(builder.String())
+	err = createWriteFile("README.md", builder.String())
 	if err != nil {
 		log.Fatalf("寫入檔案時發生錯誤：%v", err)
 	}
@@ -66,7 +75,7 @@ func updateGithub() error {
 		if err != nil {
 			log.Printf("執行命令 '%s' 時發生錯誤：%v", cmd, err)
 			log.Printf("命令輸出：%s", output)
-			return fmt.Errorf("執行命令 '%s' 失敗", cmd)
+			return fmt.Errorf("執行命令 '%s' 失敗: %w", cmd, err)
 		}
 		fmt.Printf("命令 '%s' 的輸出：%s\n", cmd, output)
 	}
@@ -74,10 +83,10 @@ func updateGithub() error {
 }
 
 func createWriteFile(filename, content string) error {
-	return ioutil.WriteFile(filename, []byte(content), 0644)
+	return os.WriteFile(filename, []byte(content), 0644)
 }
 
-func getQuestionProgressInfo() (easy, medium, hard int) {
+func getQuestionProgressInfo() (easy, medium, hard int, err error) {
 	client := &http.Client{}
 	jsonStr := `{
 		"query": "query userProfileUserQuestionProgressV2($userSlug: String!) { userProfileUserQuestionProgressV2(userSlug: $userSlug) { numAcceptedQuestions { difficulty count } } }",
@@ -87,20 +96,20 @@ func getQuestionProgressInfo() (easy, medium, hard int) {
 	}`
 	req, err := http.NewRequest("POST", "https://leetcode.com/graphql/", strings.NewReader(jsonStr))
 	if err != nil {
-		log.Fatalf("創建請求時發生錯誤：%v", err)
+		return 0, 0, 0, fmt.Errorf("創建請求時發生錯誤：%w", err)
 	}
 	req.Header.Add("content-type", "application/json")
 	req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("發送請求時發生錯誤：%v", err)
+		return 0, 0, 0, fmt.Errorf("發送請求時發生錯誤：%w", err)
 	}
 	defer resp.Body.Close()
 
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := os.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("API 請求失敗，狀態碼：%d，回應：%s", resp.StatusCode, string(body))
+		return 0, 0, 0, fmt.Errorf("API 請求失敗，狀態碼：%d，回應：%s", resp.StatusCode, string(body))
 	}
 
 	fmt.Println("API 回應：", string(body))
@@ -118,7 +127,7 @@ func getQuestionProgressInfo() (easy, medium, hard int) {
 
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		log.Fatalf("解析 JSON 時發生錯誤：%v", err)
+		return 0, 0, 0, fmt.Errorf("解析 JSON 時發生錯誤：%w", err)
 	}
 
 	for _, item := range response.Data.UserProfileUserQuestionProgressV2.NumAcceptedQuestions {
@@ -132,13 +141,13 @@ func getQuestionProgressInfo() (easy, medium, hard int) {
 		}
 	}
 
-	return
+	return easy, medium, hard, nil
 }
 
-func readFile(filename string) string {
-	data, err := ioutil.ReadFile(filename)
+func readFile(filename string) (string, error) {
+	data, err := os.ReadFile(filename)
 	if err != nil {
-		log.Fatalf("讀取檔案 %s 時發生錯誤：%v", filename, err)
+		return "", fmt.Errorf("讀取檔案 %s 時發生錯誤：%w", filename, err)
 	}
-	return string(data)
+	return string(data), nil
 }
