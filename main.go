@@ -17,11 +17,14 @@ var userSlug = "l11y0"
 var projectPath = filepath.Join("C:\\Users", "黃韻如", "Documents", "l11y0")
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 	// 切換到專案目錄
 	err := os.Chdir(projectPath)
 	if err != nil {
 		log.Fatalf("無法切換到專案目錄：%v", err)
 	}
+	log.Printf("當前工作目錄: %s", projectPath)
 
 	easy, medium, hard, err := getQuestionProgressInfo()
 	if err != nil {
@@ -39,52 +42,50 @@ func main() {
 	mdContent = strings.ReplaceAll(mdContent, `[[3]]`, strconv.Itoa(medium))
 	mdContent = strings.ReplaceAll(mdContent, `[[4]]`, strconv.Itoa(hard))
 
-	fmt.Println(mdContent)
+	log.Println("更新後的 README 內容:")
+	log.Println(mdContent)
+
 	err = createWriteFile("README.md", mdContent)
 	if err != nil {
 		log.Fatalf("寫入檔案時發生錯誤：%v", err)
 	}
+	log.Println("README.md 已成功更新")
+
 	err = updateGithub()
 	if err != nil {
 		log.Fatalf("更新 GitHub 時發生錯誤：%v", err)
 	}
-}
-
-func checkFileIsExist(filename string) bool {
-	_, err := os.Stat(filename)
-	return !os.IsNotExist(err)
+	log.Println("GitHub 更新成功")
 }
 
 func updateGithub() error {
-	commands := []string{
-		"git add README.md",
-		"git commit -m \"更新 README.md\"",
-		"git push origin master",
+	commands := [][]string{
+		{"git", "add", "README.md"},
+		{"git", "commit", "-m", "更新 README.md"},
+		{"git", "push", "origin", "master"},
 	}
 
 	for _, cmd := range commands {
-		parts := strings.Fields(cmd)
-		command := exec.Command(parts[0], parts[1:]...)
-
-		// 設置環境變數以處理可能的憑證請求
-		command.Env = append(os.Environ(),
-			"GIT_ASKPASS=git-gui--askpass",
-			"SSH_ASKPASS=git-gui--askpass",
-		)
+		log.Printf("執行命令: %s", strings.Join(cmd, " "))
+		command := exec.Command(cmd[0], cmd[1:]...)
 
 		output, err := command.CombinedOutput()
+		log.Printf("命令輸出:\n%s", string(output))
+
 		if err != nil {
-			log.Printf("執行命令 '%s' 時發生錯誤：%v", cmd, err)
-			log.Printf("命令輸出：%s", output)
-			return fmt.Errorf("執行命令 '%s' 失敗: %w", cmd, err)
+			return fmt.Errorf("執行命令 '%s' 失敗: %w\n輸出: %s", strings.Join(cmd, " "), err, string(output))
 		}
-		fmt.Printf("命令 '%s' 的輸出：%s\n", cmd, output)
 	}
 	return nil
 }
 
 func createWriteFile(filename, content string) error {
-	return ioutil.WriteFile(filename, []byte(content), 0644)
+	err := ioutil.WriteFile(filename, []byte(content), 0644)
+	if err != nil {
+		return fmt.Errorf("寫入檔案 %s 時發生錯誤: %w", filename, err)
+	}
+	log.Printf("成功寫入檔案: %s", filename)
+	return nil
 }
 
 func getQuestionProgressInfo() (easy, medium, hard int, err error) {
@@ -113,10 +114,10 @@ func getQuestionProgressInfo() (easy, medium, hard int, err error) {
 		return 0, 0, 0, fmt.Errorf("讀取回應內容時發生錯誤：%w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return 0, 0, 0, fmt.Errorf("API 請求失敷鐨，狀態碼：%d，回應：%s", resp.StatusCode, string(body))
+		return 0, 0, 0, fmt.Errorf("API 請求失敗，狀態碼：%d，回應：%s", resp.StatusCode, string(body))
 	}
 
-	fmt.Println("API 回應：", string(body))
+	log.Println("API 回應：", string(body))
 
 	var response struct {
 		Data struct {
@@ -145,6 +146,7 @@ func getQuestionProgressInfo() (easy, medium, hard int, err error) {
 		}
 	}
 
+	log.Printf("題目統計: Easy: %d, Medium: %d, Hard: %d", easy, medium, hard)
 	return easy, medium, hard, nil
 }
 
@@ -153,5 +155,6 @@ func readFile(filename string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("讀取檔案 %s 時發生錯誤：%w", filename, err)
 	}
+	log.Printf("成功讀取檔案: %s", filename)
 	return string(data), nil
 }
