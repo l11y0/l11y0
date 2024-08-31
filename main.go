@@ -8,12 +8,13 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
 
-var userSlug = "l11y0"                           // 確保這是您的 LeetCode 用戶名
-var projectPath = `C:\Users\黃韻如\Documents\l11y0` // 設定專案路徑
+var userSlug = "l11y0"
+var projectPath = filepath.Join("C:", "Users", "黃韻如", "Documents", "l11y0")
 
 func main() {
 	// 切換到專案目錄
@@ -46,8 +47,8 @@ func checkFileIsExist(filename string) bool {
 
 func updateGithub() error {
 	commands := []string{
-		"git add .",
-		"git commit -m \"update README.md and main.go\"",
+		"git add README.md",
+		"git commit -m \"更新 README.md\"",
 		"git push origin master",
 	}
 
