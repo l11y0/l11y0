@@ -33,14 +33,14 @@ func main() {
 		log.Fatalf("讀取 README-TEMP.md 時發生錯誤：%v", err)
 	}
 
-	var builder strings.Builder
-	builder.WriteString(strings.ReplaceAll(mdContent, `[[1]]`, strconv.Itoa(easy+medium+hard)))
-	builder.WriteString(strings.ReplaceAll(builder.String(), `[[2]]`, strconv.Itoa(easy)))
-	builder.WriteString(strings.ReplaceAll(builder.String(), `[[3]]`, strconv.Itoa(medium)))
-	builder.WriteString(strings.ReplaceAll(builder.String(), `[[4]]`, strconv.Itoa(hard)))
+	totalSolved := easy + medium + hard
+	mdContent = strings.ReplaceAll(mdContent, `[[1]]`, strconv.Itoa(totalSolved))
+	mdContent = strings.ReplaceAll(mdContent, `[[2]]`, strconv.Itoa(easy))
+	mdContent = strings.ReplaceAll(mdContent, `[[3]]`, strconv.Itoa(medium))
+	mdContent = strings.ReplaceAll(mdContent, `[[4]]`, strconv.Itoa(hard))
 
-	fmt.Println(builder.String())
-	err = createWriteFile("README.md", builder.String())
+	fmt.Println(mdContent)
+	err = createWriteFile("README.md", mdContent)
 	if err != nil {
 		log.Fatalf("寫入檔案時發生錯誤：%v", err)
 	}
@@ -113,7 +113,7 @@ func getQuestionProgressInfo() (easy, medium, hard int, err error) {
 		return 0, 0, 0, fmt.Errorf("讀取回應內容時發生錯誤：%w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return 0, 0, 0, fmt.Errorf("API 請求失敗，狀態碼：%d，回應：%s", resp.StatusCode, string(body))
+		return 0, 0, 0, fmt.Errorf("API 請求失敷鐨，狀態碼：%d，回應：%s", resp.StatusCode, string(body))
 	}
 
 	fmt.Println("API 回應：", string(body))
