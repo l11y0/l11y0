@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -83,7 +84,7 @@ func updateGithub() error {
 }
 
 func createWriteFile(filename, content string) error {
-	return os.WriteFile(filename, []byte(content), 0644)
+	return ioutil.WriteFile(filename, []byte(content), 0644)
 }
 
 func getQuestionProgressInfo() (easy, medium, hard int, err error) {
@@ -107,7 +108,10 @@ func getQuestionProgressInfo() (easy, medium, hard int, err error) {
 	}
 	defer resp.Body.Close()
 
-	body, _ := os.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("讀取回應內容時發生錯誤：%w", err)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return 0, 0, 0, fmt.Errorf("API 請求失敗，狀態碼：%d，回應：%s", resp.StatusCode, string(body))
 	}
@@ -145,7 +149,7 @@ func getQuestionProgressInfo() (easy, medium, hard int, err error) {
 }
 
 func readFile(filename string) (string, error) {
-	data, err := os.ReadFile(filename)
+	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return "", fmt.Errorf("讀取檔案 %s 時發生錯誤：%w", filename, err)
 	}
